@@ -1,4 +1,4 @@
-python3 script_python.txt DatosSucios/ DatosLimpios/ 
+python script_python.txt DatosSucios DatosLimpios 
 
 mongosh --eval "use bbdd2" --eval "db.dropDatabase()"
 
