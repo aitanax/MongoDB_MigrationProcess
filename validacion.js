@@ -104,7 +104,7 @@ db.runCommand({
             required: ["ID", "DESC_CLASIFICACION", "COD_BARRIO", "BARRIO", "COD_DISTRITO", "DISTRITO", "ESTADO", "COORD_GIS_X", "COORD_GIS_Y", "LATITUD", "LONGITUD", "TIPO_VIA", "NOM_VIA", "NUM_VIA", "COD_POSTAL", "FECHA_INSTALACION", "MODELO", "TIPO_JUEGO", "ACCESIBLE", "NDP_AREA", "INDICADOREXPOSICION","DESGASTE_ACUMULADO"],
             properties: {
                 _id: {
-                    bsonType: "int",
+                    bsonType: "string",
                     description: "Id del juego"
                 },
                 DESC_CLASIFICACION: {

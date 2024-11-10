@@ -448,6 +448,32 @@ def clean_data(csv_input, csv_output, file_name, date_columns, text_columns, pre
     
     print(f"Archivo limpio guardado en: {cleaned_file_path}")
 
+def clean_data_iu(csv_input, csv_output, file_name, date_columns, text_columns, prefix=""):
+    # Construir la ruta completa del archivo de entrada
+    file_path = os.path.join(csv_input, file_name)
+    
+    # Extraer los datos del archivo CSV
+    df = extract_data(file_path)
+    
+    # Limpiar los datos utilizando la transformación
+    df_cleaned = transform_data(df, date_columns, text_columns, prefix)
+    
+    # Ordenar los datos por la columna 'ID'
+    df_cleaned = df_cleaned.sort_values(by='ID')
+    
+    # Renombrar la columna ID
+    df_cleaned = rename_id_column(df_cleaned)
+
+    df_cleaned = df_cleaned.rename(columns={'MANTENIMEINTOID': 'MANTENIMIENTOID'})
+    
+    # Generar la ruta del archivo limpio
+    cleaned_file_path = os.path.join(csv_output, file_name.replace('Sucio', 'Limpio'))
+    
+    # Guardar el archivo limpio
+    df_cleaned.to_csv(cleaned_file_path, index=False)
+    
+    print(f"Archivo limpio guardado en: {cleaned_file_path}")
+
 
 def rename_nif_column(df):
     df = df.rename(columns={'NIF': '_id'})
@@ -579,10 +605,6 @@ def change_id_area(csv_input, csv_output):
     
     print(f"Archivo de áreas procesado y guardado en: {cleaned_file_path}")
 
-# Función principal para obtener los argumentos de la línea de comandos
-import os
-import sys
-
 def main():
     if len(sys.argv) != 3:
         print(f'[ERROR] Uso: python3 {sys.argv[0]} <directorio de entrada> <directorio de salida>')
@@ -601,7 +623,7 @@ def main():
     clean_areas_data(input_path, output_path)
     clean_mantenimiento_data(input_path, output_path)
     clean_juegos_data(input_path, output_path)
-    clean_data(input_path, output_path, 'IncidenciasUsuariosSucio.csv', 
+    clean_data_iu(input_path, output_path, 'IncidenciasUsuariosSucio.csv', 
                date_columns=['FECHA_REPORTE'], 
                text_columns=['TIPO_INCIDENCIA', 'ESTADO'],
                prefix='INC-')
@@ -615,6 +637,7 @@ def main():
                date_columns=['FECHA_REPORTE'], 
                text_columns=['TIPO_INCIDENTE', 'GRAVEDAD'],
                prefix='IS-')
+    
     clean_users_data(input_path, output_path)
     clean_meteo24_data(input_path, output_path)
     clean_estaciones_meteo_codigo_postal(input_path, output_path)

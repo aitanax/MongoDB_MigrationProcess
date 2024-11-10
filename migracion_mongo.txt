@@ -65,77 +65,70 @@ db.areas.aggregate([
     },
     {
         $addFields: {
-          // Paso 1: Eliminar los caracteres `[` y `]` para facilitar el procesamiento
-          CANTIDAD_POR_TIPO_JUEGO: {
-            $replaceAll: {
-              input: "$CANTIDAD_POR_TIPO_JUEGO",
-              find: "[",
-              replacement: ""
+            CANTIDAD_POR_TIPO_JUEGO: {
+                $replaceAll: {
+                    input: "$CANTIDAD_POR_TIPO_JUEGO",
+                    find: "[",
+                    replacement: ""
+                }
             }
-          }
         }
-      },
-      {
+    },
+    {
         $addFields: {
             CANTIDAD_POR_TIPO_JUEGO: {
-            $replaceAll: {
-              input: "$CANTIDAD_POR_TIPO_JUEGO",
-              find: "]",
-              replacement: ""
-            }
-          }
-        }
-      },
-      {
-        $addFields: {
-          // Paso 2: Dividir el string por "), (" para obtener cada par tipo-cantidad
-          CANTIDAD_POR_TIPO_JUEGO: { $split: ["$CANTIDAD_POR_TIPO_JUEGO", "), ("] }
-        }
-      },
-      {
-        $addFields: {
-          // Paso 3: Limpiar y mapear cada par "tipo-cantidad" a un objeto eliminando caracteres extra
-          CANTIDAD_POR_TIPO_JUEGO: {
-            $map: {
-              input: "$CANTIDAD_POR_TIPO_JUEGO",
-              as: "tipoCantidad",
-              in: {
-                $let: {
-                  vars: {
-                    // Dividir cada par en tipo y cantidad
-                    tipoYcantidad: { $split: ["$$tipoCantidad", "', '"] }
-                  },
-                  in: {
-                    k: { 
-                      // Eliminar caracteres innecesarios de la clave (tipo de juego)
-                      $trim: { input: { $arrayElemAt: ["$$tipoYcantidad", 0] }, chars: "('" }
-                    },
-                    v: { 
-                      // Convertir el valor (cantidad) a entero después de eliminar caracteres extra
-                      $toInt: { 
-                        $trim: { input: { $arrayElemAt: ["$$tipoYcantidad", 1] }, chars: "') " }
-                      } 
-                    }
-                  }
+                $replaceAll: {
+                    input: "$CANTIDAD_POR_TIPO_JUEGO",
+                    find: "]",
+                    replacement: ""
                 }
-              }
             }
-          }
         }
-      },
-      {
-        $addFields: {
-          // Paso 4: Convertir la lista de pares clave-valor en un objeto
-          CANTIDAD_POR_TIPO_JUEGO: { $arrayToObject: "$CANTIDAD_POR_TIPO_JUEGO" }
-        }
-      },
+    },
     {
-        $out: {
-            db: "bbdd2",
-            coll: "areas"
+        $addFields: {
+            CANTIDAD_POR_TIPO_JUEGO: { 
+                $split: ["$CANTIDAD_POR_TIPO_JUEGO", "), ("] 
+            }
         }
+    },
+    {
+        $addFields: {
+            CANTIDAD_POR_TIPO_JUEGO: {
+                $map: {
+                    input: "$CANTIDAD_POR_TIPO_JUEGO",
+                    as: "tipoCantidad",
+                    in: {
+                        $let: {
+                            vars: {
+                                tipoYcantidad: { $split: ["$$tipoCantidad", "', '"] }
+                            },
+                            in: {
+                                k: { 
+                                    $trim: { input: { $arrayElemAt: ["$$tipoYcantidad", 0] }, chars: "('" }
+                                },
+                                v: { 
+                                    $toInt: { 
+                                        $trim: { input: { $arrayElemAt: ["$$tipoYcantidad", 1] }, chars: "') " }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        $addFields: {
+            CANTIDAD_POR_TIPO_JUEGO: { $arrayToObject: "$CANTIDAD_POR_TIPO_JUEGO" }
+        }
+    },
+    {
+        $out: { db: "bbdd2", coll: "areas" }
     }
 ]);
+
 
 db.juegos.aggregate([
     {
@@ -341,25 +334,6 @@ db.mantenimiento.aggregate([
     }
 ]);
 
-db.incidentes_seguridad.aggregate([
-    {
-        $addFields: {
-            AREARECREATIVAID: {
-                $convert: {
-                    input: "$AREARECREATIVAID",
-                    to: "string",
-                    onError: null,
-                    onNull: null
-                }
-            }
-        } 
-    },
-    {
-        $out: {
-        db: "bbdd2", coll:"incidentes_seguridad"
-    }}
-]);
-
 db.incidencias_usuarios.aggregate([
     {
         $addFields: {
@@ -544,7 +518,7 @@ db.runCommand({
             required: ["ID", "DESC_CLASIFICACION", "COD_BARRIO", "BARRIO", "COD_DISTRITO", "DISTRITO", "ESTADO", "COORD_GIS_X", "COORD_GIS_Y", "LATITUD", "LONGITUD", "TIPO_VIA", "NOM_VIA", "NUM_VIA", "COD_POSTAL", "FECHA_INSTALACION", "MODELO", "TIPO_JUEGO", "ACCESIBLE", "NDP_AREA", "INDICADOREXPOSICION","DESGASTE_ACUMULADO"],
             properties: {
                 _id: {
-                    bsonType: "int",
+                    bsonType: "string",
                     description: "Id del juego"
                 },
                 DESC_CLASIFICACION: {
@@ -669,7 +643,7 @@ db.runCommand({collMod: "mantenimiento",
                     description: "Estado posterior a la revisión",
                 },
                 JUEGOID: {
-                    bsonType: "int",
+                    bsonType: "string",
                     description: "Identificador del juego al que se le realizó el mantenimiento",
                 },
                 TIPO: {
@@ -714,7 +688,7 @@ db.runCommand({collMod: "encuestas_satisfaccion",
                     description: "Fecha de realización de la encuesta"
                 },
                 AREARECREATIVAID: {
-                    bsonType: "int",
+                    bsonType: "string",
                     description: "ID del área recreativa evaluada"
                 }
             }
@@ -1016,10 +990,6 @@ db.areas.aggregate([
         $out: { db: "bbdd2", coll: "agregado_area_recreativa_clima" }
     }
 ]);
-
-
-
-// --------- AGREGADO 2 ---------
 
 db.juegos.aggregate([
     {
