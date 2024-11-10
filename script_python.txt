@@ -27,6 +27,7 @@ def format_date(date):
             except ValueError:
                 continue
     return date
+    
 def format_date2(date):
     if isinstance(date, pd.Timestamp):
         return date.strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -160,7 +161,7 @@ def rellenar_con_direccion_aux(df):
                     num_via = token
                     nom_via = " ".join(direccion_tokens[:i])  # Resto de tokens como nombre de vía
                     break
-                elif 'Nº' in token:  # Buscar patrón "Nº" seguido de número
+                elif 'Nº' in token:
                     num_match = re.search(r'Nº\s*(\d+)', ' '.join(direccion_tokens[i:]), re.IGNORECASE)
                     if num_match:
                         num_via = num_match.group(1)
@@ -199,48 +200,27 @@ def transform_areas_data(df, juegos_df):
     return df
 
 def clean_areas_data(csv_input, csv_output):
-    # Generar las rutas completas para los archivos de entrada
     areas_file_path = os.path.join(csv_input, "AreasSucio.csv")
     juegos_file_path = os.path.join(csv_input, "JuegosSucio.csv")
-    
-    # Extraer los datos de los archivos CSV
     df = extract_data(areas_file_path)
     juegos_df = extract_data(juegos_file_path)
-    
-    # Procesar los datos y ordenarlos
     df_cleaned = transform_areas_data(df, juegos_df).sort_values(by='ID')
-    
-    # Generar la ruta para el archivo de salida limpio
     cleaned_file_path = os.path.join(csv_output, "AreasLimpio.csv")
-    
-    # Guardar el archivo limpio
     df_cleaned.to_csv(cleaned_file_path, index=False)
-    print(f"Archivo procesado y guardado en: {cleaned_file_path}")
 
 # Función para limpiar los datos de mantenimiento
 def clean_mantenimiento_data(csv_input, csv_output):
-    # Generar la ruta completa para el archivo de entrada
     mantenimiento_file_path = os.path.join(csv_input, "MantenimientoSucio.csv")
-    
-    # Extraer los datos del archivo CSV
     df = extract_data(mantenimiento_file_path)
-    
-    # Procesar los datos
     df.columns = [col.upper() for col in df.columns]
     df['FECHA_INTERVENCION'] = df['FECHA_INTERVENCION'].apply(format_date)
     standardize_text(df, ['TIPO_INTERVENCION', 'ESTADO_PREVIO', 'ESTADO_POSTERIOR', 'TIPO', 'COMENTARIOS'])
     df['ID'] = df['ID'].str.extract('(\d+)')  # Extraer el número del ID original
     df['ID'] = df['ID'].astype(int).apply(lambda x: f'MNT-{str(x).zfill(5)}') 
-    
-    # Generar la ruta de salida para el archivo limpio
     cleaned_file_path = os.path.join(csv_output, "MantenimientoLimpio.csv")
-    
-    # Renombrar la columna ID y guardar el archivo procesado
     df = rename_id_column(df)
     df.to_csv(cleaned_file_path, index=False)
     
-    print(f"Archivo de mantenimiento procesado y guardado en: {cleaned_file_path}")
-
 
 def fill_missing_tipo(row, column, string_missing, id_row):
     value = row[column]
@@ -309,9 +289,7 @@ def transform_juegos_data(df, df_mantenimiento, df_areas):
     fill_columns(df_areas, df, columns_to_fill)
     fill_columns(df, df_areas, columns_to_fill)
     ndp_cambiados, df = assignar_ndp_existente_y_dir(df, df_areas)
-    print(f"\nTotal de juegos a los que se les ha cambiado el NDP: {ndp_cambiados}")
     juegos_sin_ndp_en_areas = df[df['NDP'].isna() | ~df['NDP'].isin(df_areas['NDP'])]
-    print(f"\nTotal de juegos sin NDP en áreas: {len(juegos_sin_ndp_en_areas)}")
     print(juegos_sin_ndp_en_areas[['ID', 'NDP', 'BARRIO', 'TIPO_JUEGO']].head(10))
     fusionar_dataframes(df, df_areas, ["CODIGO_INTERNO", "NDP"], "NDP_AREA") 
     df = rellenar_con_direccion_aux(df)
@@ -322,8 +300,6 @@ def transform_juegos_data(df, df_mantenimiento, df_areas):
     df_areas = fill_missing(df_areas,[])
     df['NOM_VIA'] = df['NOM_VIA'].replace(['NAN', 'nan', '0', ''], '')
     df['DIRECCION_AUX'] = df['DIRECCION_AUX'].replace(['NAN', 'nan', '0', ''], '')
-    print(f"Tipo de dato de NOM_VIA después de fillna: {df['NOM_VIA'].dtype}")
-    print(f"Tipo de dato de DIRECCION_AUX después de fillna: {df['DIRECCION_AUX'].dtype}")
 
     def count_game_types(area_id):
         juegos_area = df[df['NDP_AREA'] == area_id]
@@ -344,7 +320,6 @@ def assignar_ndp_existente_y_dir(df, df_areas):
     df_areas['BARRIO_NORM'] = df_areas['BARRIO'].apply(lambda x: unidecode(x).upper())
     df_areas['TIPO_NORM'] = df_areas['TIPO'].apply(lambda x: unidecode(x).upper())
     juegos_sin_ndp = df[df['NDP'].isna() | ~df['NDP'].isin(df_areas['NDP'])]
-    print(f"Total juegos sin NDP inicial: {len(juegos_sin_ndp)}")
     ndp_cambiados = 0
     for idx, juego in juegos_sin_ndp.iterrows():
         tipo_juego = unidecode(juego['TIPO_JUEGO']).upper()
@@ -354,13 +329,11 @@ def assignar_ndp_existente_y_dir(df, df_areas):
             nuevo_ndp = area_coincidente.iloc[0]['NDP']
             df.at[idx, 'NDP'] = nuevo_ndp
             ndp_cambiados += 1
-            print(f"Asignado NDP {nuevo_ndp} al juego ID {juego['ID']}")
             for col in ['TIPO_VIA', 'NOM_VIA', 'NUM_VIA']:
                 if pd.isna(juego[col]) or juego[col] == '':
                     nuevo_valor = area_coincidente.iloc[0][col]
                     if not pd.isna(nuevo_valor) and nuevo_valor != '':
                         df.at[idx, col] = nuevo_valor
-                        print(f"Asignado {col} '{nuevo_valor}' al juego ID {juego['ID']}")
                     else:
                         print(f"Sin valor de {col} disponible en área para juego ID {juego['ID']}")
         else:
@@ -368,36 +341,23 @@ def assignar_ndp_existente_y_dir(df, df_areas):
     return ndp_cambiados, df
 
 def clean_juegos_data(csv_input, csv_output):
-    # Generar las rutas completas para los archivos de entrada
     juegos_file_path = os.path.join(csv_input, "JuegosSucio.csv")
     mantenimiento_file_path = os.path.join(csv_output, "MantenimientoLimpio.csv")
     areas_file_path = os.path.join(csv_output, "AreasLimpio.csv")
-    
-    # Extraer los datos de los archivos CSV
     df = extract_data(juegos_file_path)
     df_mantenimiento = extract_data(mantenimiento_file_path)
     df_areas = extract_data(areas_file_path)
-    
     # Procesar los datos y transformarlos
     df_cleaned, df_areas = transform_juegos_data(df, df_mantenimiento, df_areas)
-    
-    # Ordenar por ID y limpiar los datos
     df_cleaned = df_cleaned.sort_values(by='ID')
     df_cleaned = rename_id_column(df_cleaned)
     df_cleaned = delete_duplicates(df_cleaned, "_id")
-    
-    # Generar las rutas de salida para los archivos limpios
     cleaned_file_path = os.path.join(csv_output, "JuegosLimpio.csv")
     cleaned_file_path_areas = os.path.join(csv_output, "AreasLimpio.csv")
-    
-    # Guardar los archivos procesados
     df_cleaned.to_csv(cleaned_file_path, index=False)
     df_areas.drop(columns=['BARRIO_NORM', 'TIPO_NORM'], inplace=True)
     df_areas.to_csv(cleaned_file_path_areas, index=False)
     
-    print(f"Archivo de juegos procesado y guardado en: {cleaned_file_path}")
-    print(f"Archivo de áreas procesado y guardado en: {cleaned_file_path_areas}")
-
 def standardize_text2(column):
     return column.astype(str).str.upper().apply(unidecode)
 
@@ -423,57 +383,25 @@ def transform_data(df, date_columns=[], text_columns=[], prefix=""):
         df = add_prefix_to_id(df, prefix)
     return handle_duplicates(df)
 
-# Función para limpiar los datos
 def clean_data(csv_input, csv_output, file_name, date_columns, text_columns, prefix=""):
-    # Construir la ruta completa del archivo de entrada
     file_path = os.path.join(csv_input, file_name)
-    
-    # Extraer los datos del archivo CSV
     df = extract_data(file_path)
-    
-    # Limpiar los datos utilizando la transformación
     df_cleaned = transform_data(df, date_columns, text_columns, prefix)
-    
-    # Ordenar los datos por la columna 'ID'
     df_cleaned = df_cleaned.sort_values(by='ID')
-    
-    # Renombrar la columna ID
     df_cleaned = rename_id_column(df_cleaned)
-    
-    # Generar la ruta del archivo limpio
     cleaned_file_path = os.path.join(csv_output, file_name.replace('Sucio', 'Limpio'))
-    
-    # Guardar el archivo limpio
     df_cleaned.to_csv(cleaned_file_path, index=False)
     
-    print(f"Archivo limpio guardado en: {cleaned_file_path}")
-
 def clean_data_iu(csv_input, csv_output, file_name, date_columns, text_columns, prefix=""):
     # Construir la ruta completa del archivo de entrada
     file_path = os.path.join(csv_input, file_name)
-    
-    # Extraer los datos del archivo CSV
     df = extract_data(file_path)
-    
-    # Limpiar los datos utilizando la transformación
     df_cleaned = transform_data(df, date_columns, text_columns, prefix)
-    
-    # Ordenar los datos por la columna 'ID'
     df_cleaned = df_cleaned.sort_values(by='ID')
-    
-    # Renombrar la columna ID
     df_cleaned = rename_id_column(df_cleaned)
-
     df_cleaned = df_cleaned.rename(columns={'MANTENIMEINTOID': 'MANTENIMIENTOID'})
-    
-    # Generar la ruta del archivo limpio
     cleaned_file_path = os.path.join(csv_output, file_name.replace('Sucio', 'Limpio'))
-    
-    # Guardar el archivo limpio
     df_cleaned.to_csv(cleaned_file_path, index=False)
-    
-    print(f"Archivo limpio guardado en: {cleaned_file_path}")
-
 
 def rename_nif_column(df):
     df = df.rename(columns={'NIF': '_id'})
@@ -503,37 +431,24 @@ def transform_users_data(df):
     return df
 
 def clean_users_data(csv_input, csv_output):
-    # Generar la ruta completa para el archivo de entrada
     users_file_path = os.path.join(csv_input, "UsuariosSucio.csv")
-    
-    # Extraer los datos del archivo CSV
     df = extract_data(users_file_path)
-    
-    # Procesar los datos
     df_cleaned = transform_users_data(df)
     df_cleaned = df_cleaned.sort_values(by='NIF')
-    
-    # Generar la ruta de salida para el archivo limpio
     cleaned_file_path = os.path.join(csv_output, "UsuariosLimpio.csv")
-    
-    # Renombrar la columna NIF y guardar el archivo procesado
     df_cleaned = rename_nif_column(df_cleaned)
     df_cleaned.to_csv(cleaned_file_path, index=False)
     
-    print(f'Datos limpios guardados en {cleaned_file_path}')
 
-# Función para limpiar los datos de meteología 24
 def clean_meteo24_data(csv_input, csv_output):
     # Generar la ruta completa para el archivo de entrada
     csv_input_path = os.path.join(csv_input, "meteo24.csv")
     
-    # Leer el archivo CSV
     df_meteo = pd.read_csv(csv_input_path, delimiter=';')
     df_cleaned_meteo = pd.DataFrame(columns=["ID", "FECHA", "TEMPERATURA", "PRECIPITACION", "VIENTO", "PUNTO_MUESTREO"])
     magnitudes = {89: "PRECIPITACION", 83: "TEMPERATURA", 81: "VIENTO"}
     count_id = 1
     
-    # Procesar los datos
     for _, row in df_meteo.iterrows():
         magnitud = row["MAGNITUD"]
         if magnitud in magnitudes:
@@ -553,7 +468,6 @@ def clean_meteo24_data(csv_input, csv_output):
                     df_cleaned_meteo.loc[(df_cleaned_meteo["FECHA"] == fecha) & (df_cleaned_meteo["PUNTO_MUESTREO"] == str(estacion)[:8]), magnitudes[magnitud]] = valor
                 count_id += 1
 
-    # Procesar la fecha y otros campos
     df_cleaned_meteo["FECHA"] = pd.to_datetime(df_cleaned_meteo["FECHA"], errors='coerce')
     df_cleaned_meteo["FECHA"] = df_cleaned_meteo["FECHA"].apply(format_date2)
     df_cleaned_meteo = df_cleaned_meteo.astype(object)
@@ -565,45 +479,26 @@ def clean_meteo24_data(csv_input, csv_output):
     df_cleaned_meteo = df_cleaned_meteo.rename(columns={'ID': '_id', 'PUNTO_MUESTREO': 'DISTRITO'})
     df_cleaned_meteo = delete_duplicates(df_cleaned_meteo, "_id")
 
-    # Guardar el archivo limpio en la ruta de salida
     csv_output_path = os.path.join(csv_output, "Meteo24Limpio.csv")
     df_cleaned_meteo.to_csv(csv_output_path, index=False)
-    print(f"Archivo procesado y guardado en: {csv_output_path}")
 
-# Función para limpiar las estaciones de meteorología y código postal
 def clean_estaciones_meteo_codigo_postal(csv_input, csv_output):
-    # Generar la ruta completa para el archivo de entrada
     csv_input_path = os.path.join(csv_input, "estaciones_meteo_CodigoPostal.csv")
     
-    # Leer el archivo CSV
     input_csv = pd.read_csv(csv_input_path, delimiter=";")
     
-    # Procesar el archivo
     input_csv.at[0, "Codigo Postal"] = input_csv.at[0, "Codigo Postal"].split(',')[0]
     input_csv = input_csv.rename(columns={'ID': '_id'})
     
-    # Guardar el archivo limpio
     csv_output_path = os.path.join(csv_output, "EstacionesMeteoCodigoPostalLimpio.csv")
     input_csv.to_csv(csv_output_path, index=False)
-    print(f"Archivo procesado y guardado en: {csv_output_path}")
 
 def change_id_area(csv_input, csv_output):
-    # Generar la ruta completa para el archivo de entrada
     areas_file_path = os.path.join(csv_output, "AreasLimpio.csv")
-    
-    # Extraer los datos del archivo CSV
     df = extract_data(areas_file_path)
-    
-    # Renombrar la columna ID
     df = rename_id_column(df)
-    
-    # Generar la ruta de salida para el archivo procesado
     cleaned_file_path = os.path.join(csv_output, "AreasLimpio.csv")
-    
-    # Guardar el archivo procesado
     df.to_csv(cleaned_file_path, index=False)
-    
-    print(f"Archivo de áreas procesado y guardado en: {cleaned_file_path}")
 
 def main():
     if len(sys.argv) != 3:
